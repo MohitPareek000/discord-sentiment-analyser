@@ -123,6 +123,9 @@ class SentimentBot(commands.Bot):
         Args:
             message: Discord message object
         """
+        # Log every on_message trigger for debugging
+        logger.debug(f"on_message triggered for message ID {message.id}")
+
         # Ignore messages from the bot itself
         if message.author == self.user:
             return
@@ -147,11 +150,12 @@ class SentimentBot(commands.Bot):
         try:
             # Check if we've already processed this message (prevent duplicates)
             if message.id in self.processed_messages:
-                logger.debug(f"Skipping already processed message {message.id}")
+                logger.warning(f"DUPLICATE DETECTED: Skipping already processed message {message.id} from {message.author.name}")
                 return
 
             # Add to processed set
             self.processed_messages.add(message.id)
+            logger.info(f"Processing new message {message.id} from {message.author.name} - Processed set size: {len(self.processed_messages)}")
 
             # Clean up old processed messages (keep only last 1000)
             if len(self.processed_messages) > 1000:
@@ -159,9 +163,21 @@ class SentimentBot(commands.Bot):
                 messages_to_remove = list(self.processed_messages)[:500]
                 for msg_id in messages_to_remove:
                     self.processed_messages.discard(msg_id)
-            # Extract message data
-            timestamp = message.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            date = message.created_at.strftime('%Y-%m-%d')
+
+            # Extract message data - Use UTC timezone for consistency
+            # Discord timestamps are in UTC, convert to local timezone if needed
+            from datetime import timezone
+            import pytz
+
+            # Get the message timestamp in UTC
+            utc_time = message.created_at
+
+            # Convert to IST (Indian Standard Time) for logging
+            ist = pytz.timezone('Asia/Kolkata')
+            ist_time = utc_time.replace(tzinfo=timezone.utc).astimezone(ist)
+
+            timestamp = ist_time.strftime('%Y-%m-%d %H:%M:%S')
+            date = ist_time.strftime('%Y-%m-%d')
             message_id = str(message.id)
             message_body = message.content
             channel_id = str(message.channel.id)
@@ -215,6 +231,7 @@ class SentimentBot(commands.Bot):
             original_message: Original Discord message object
             message_data: Processed message data dictionary
         """
+        logger.info(f"_post_negative_message called for message {message_data['message_id']} from {message_data['discord_userName']}")
         try:
             # Use central channel if available, otherwise use guild-specific channel
             if self.central_negative_channel:
@@ -274,10 +291,11 @@ class SentimentBot(commands.Bot):
                 )
 
             # Send to negative channel
+            logger.info(f"About to send embed to channel {negative_channel.name} for message {message_data['message_id']}")
             await negative_channel.send(embed=embed)
             logger.info(
-                f"Posted negative message from {message_data['discord_userName']} "
-                f"in {message_data['server_name']} to negative channel"
+                f"Successfully posted negative message from {message_data['discord_userName']} "
+                f"in {message_data['server_name']} to negative channel {negative_channel.name}"
             )
 
         except discord.Forbidden:
