@@ -63,6 +63,7 @@ class SentimentBot(commands.Bot):
         self.admin_server_name = admin_server_name  # Centralized admin server
         self.negative_channels = {}  # guild_id: channel mapping
         self.central_negative_channel = None  # Central channel in admin server
+        self.processed_messages = set()  # Track processed message IDs to prevent duplicates
 
         logger.info("SentimentBot initialized")
 
@@ -144,6 +145,20 @@ class SentimentBot(commands.Bot):
             message: Discord message object
         """
         try:
+            # Check if we've already processed this message (prevent duplicates)
+            if message.id in self.processed_messages:
+                logger.debug(f"Skipping already processed message {message.id}")
+                return
+
+            # Add to processed set
+            self.processed_messages.add(message.id)
+
+            # Clean up old processed messages (keep only last 1000)
+            if len(self.processed_messages) > 1000:
+                # Remove oldest half
+                messages_to_remove = list(self.processed_messages)[:500]
+                for msg_id in messages_to_remove:
+                    self.processed_messages.discard(msg_id)
             # Extract message data
             timestamp = message.created_at.strftime('%Y-%m-%d %H:%M:%S')
             date = message.created_at.strftime('%Y-%m-%d')
