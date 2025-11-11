@@ -89,6 +89,24 @@ class SentimentAnalyzer:
             r'\bjoin.*course.*based.*on.*vision\b',
             r'\bif.*situation.*worsens\b',
 
+            # Negation Patterns (English & Hindi) - "not" indicates problems
+            r'\bnot\s+(good|great|satisfied|happy|working|helpful|useful|clear)\b',
+            r'\bnot\s+(getting|receiving|able to|been able to)\b',
+            r'\bno\s+(response|reply|help|support|solution|update|progress)\b',
+            r'\bnot\s+(resolved|fixed|solved|answered|addressed)\b',
+            r'\bnever\s+(received|got|heard|seen|experienced)\b',
+            r'\bnahi\s+(mila|aaya|ho|raha|kar)\b',  # Hindi negations
+            r'\bnhi\s+(milta|aata|hota|karta)\b',
+            r'\bdoesn\'?t\s+(work|help|make sense|respond)\b',
+            r'\bdon\'?t\s+(understand|know|get|see|have|receive)\b',
+            r'\bdidn\'?t\s+(get|receive|work|help|respond)\b',
+            r'\bwon\'?t\s+(work|help|fix|resolve|respond)\b',
+            r'\bcan\'?t\s+(access|login|use|find|understand|get)\b',
+            r'\bcouldn\'?t\s+(access|login|use|find|get)\b',
+            r'\bnot\s+(at all|really|even|anymore)\b',
+            r'\bno\s+(one|body|way|point|use|benefit)\b',
+            r'\bnot\s+(worth|worthy|valuable)\b.*\b(money|time|effort)\b',
+
             # Confusion & Lack of Understanding (English)
             r'\b(confused|confusing|confusion|unclear|not clear|don\'?t understand)\b',
             r'\b(lost|stuck|clueless|no idea|no clue)\b',
@@ -374,12 +392,14 @@ class SentimentAnalyzer:
                     score += 1
 
         # 3. Check for negation + positive context (e.g., "not good", "no help")
+        # Also check for general negation patterns that indicate problems
         for i in range(len(words) - 1):
             if any(negation in words[i] for negation in negation_words):
-                # Check if next 2 words contain positive words
-                next_words = words[i+1:min(i+3, len(words))]
+                # Check if next 2-3 words contain positive words
+                next_words = words[i+1:min(i+4, len(words))]
                 if any(any(pos in w for w in next_words) for pos in positive_context):
                     score += 2  # Higher weight as this is explicit negation of positivity
+                    break
 
         # 4. Check for problem + help-seeking combination
         has_problem = any(problem in message_lower for problem in problem_words)
