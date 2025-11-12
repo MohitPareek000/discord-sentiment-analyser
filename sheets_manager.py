@@ -8,6 +8,8 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 from typing import List, Dict
 import logging
+import json
+import os
 
 
 class SheetsManager:
@@ -30,8 +32,36 @@ class SheetsManager:
         ]
 
         try:
+            # Check if credentials_file is a JSON string or file path
+            # First check if GOOGLE_SHEETS_CREDENTIALS_JSON env variable exists
+            json_creds = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON')
+
+            if json_creds:
+                # Use JSON from environment variable
+                self.logger.info("Loading credentials from GOOGLE_SHEETS_CREDENTIALS_JSON environment variable")
+                try:
+                    creds_dict = json.loads(json_creds)
+                    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Invalid JSON in GOOGLE_SHEETS_CREDENTIALS_JSON: {e}")
+                    raise
+            elif os.path.isfile(credentials_file):
+                # Use file path (traditional method)
+                self.logger.info(f"Loading credentials from file: {credentials_file}")
+                creds = Credentials.from_service_account_file(credentials_file, scopes=scope)
+            else:
+                # Try to parse credentials_file as JSON string (fallback)
+                self.logger.info("Attempting to parse credentials as JSON string")
+                try:
+                    creds_dict = json.loads(credentials_file)
+                    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+                except json.JSONDecodeError:
+                    raise FileNotFoundError(
+                        f"Credentials file not found: {credentials_file}. "
+                        f"Please provide either a valid file path or set GOOGLE_SHEETS_CREDENTIALS_JSON environment variable."
+                    )
+
             # Authenticate and connect
-            creds = Credentials.from_service_account_file(credentials_file, scopes=scope)
             self.client = gspread.authorize(creds)
 
             # Open or create the spreadsheet

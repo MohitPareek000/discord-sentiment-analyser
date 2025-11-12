@@ -53,7 +53,11 @@ class SentimentBot(commands.Bot):
         intents.guilds = True
         intents.members = True
 
-        super().__init__(command_prefix='!', intents=intents)
+        super().__init__(
+            command_prefix='!',
+            intents=intents,
+            chunk_guilds_at_startup=False  # Disable member chunking to avoid timeouts
+        )
 
         # Initialize components
         self.sentiment_analyzer = SentimentAnalyzer('sentiment.md')
